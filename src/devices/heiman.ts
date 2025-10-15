@@ -47,7 +47,6 @@ const fzLocal = {
                 result.occupancy = bit0 === 1;
                 result.sensor_status = ["none", "activity"][bit1to3] || "unknown";
                 result.fall_status = ["normal", "fall_warning", "fall_alarm"][bit4to5] || "unknown";
-
             } else if (Object.hasOwn(msg.data, "ultrasonicOToUDelay")) {
                 result.RadarDelayTime = msg.data.ultrasonicOToUDelay;
             }
@@ -292,7 +291,7 @@ const tzLocal = {
             const {id, type} = attributeInfo;
 
             // let payloadValue = value;
-            await entity.write(cluster, {[id]: {value: value, type} });
+            await entity.write(cluster, {[id]: {value: value, type}});
 
             return {state: {[key]: value}};
         },
@@ -308,7 +307,7 @@ const tzLocal = {
                 throw new Error(`Unsupported attribute for get: ${key}`);
             }
 
-            await entity.read(cluster, [attributeId] );
+            await entity.read(cluster, [attributeId]);
         },
     } satisfies Tz.Converter,
 };
@@ -1250,15 +1249,13 @@ export const definitions: DefinitionWithExtend[] = [
             e.binary("occupancy", ea.STATE, true, false).withDescription("Indicates if someone is present"),
             e.enum("sensor_status", ea.STATE, ["none", "activity", "unknown"]).withDescription("Sensor activity status"),
             e.enum("enable_indicator", ea.ALL, [0, 1]).withDescription("0: Off, 1: Enable"),
-            e.numeric("sensitivity", ea.ALL)
+            e
+                .numeric("sensitivity", ea.ALL)
                 .withValueMin(0)
                 .withValueMax(100)
                 .withDescription("Sensitivity of the radar sensor in range of 0 ~ 100%"),
             e.numeric("illuminance", ea.STATE).withDescription("ambient illuminance in lux"),
-            e.numeric("radarDelayTime", ea.ALL)
-                .withValueMin(60)
-                .withValueMax(3600)
-                .withDescription("in range of 60 ~ 3600s"),
+            e.numeric("radarDelayTime", ea.ALL).withValueMin(60).withValueMax(3600).withDescription("in range of 60 ~ 3600s"),
         ],
         configure: async (device, coordinatorEndpoint, logger) => {
             const endpoint = device.getEndpoint(1);
