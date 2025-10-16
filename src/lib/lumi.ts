@@ -293,7 +293,7 @@ export const numericAttributes2Payload = async (
             case "13":
                 if (["ZNXDD01LM"].includes(model.model)) {
                     // We don't know what the value means for these devices.
-                } else if (["ZNCLBL01LM"].includes(model.model)) {
+                } else if (["ZNCLBL01LM", "PS-S04D"].includes(model.model)) {
                     // Overwrite version advertised by `genBasic` and `genOta` with correct version:
                     // https://github.com/Koenkk/zigbee2mqtt/issues/15745
                     assertNumber(value);
@@ -345,6 +345,8 @@ export const numericAttributes2Payload = async (
                     // https://github.com/Koenkk/zigbee2mqtt/issues/12279
                 } else if (["RTCGQ15LM"].includes(model.model)) {
                     payload.occupancy = value;
+                } else if (["PS-S04D"].includes(model.model)) {
+                    payload.presence = value === 1;
                 } else if (["WSDCGQ01LM", "WSDCGQ11LM", "WSDCGQ12LM", "VOCKQJK11LM"].includes(model.model)) {
                     // https://github.com/Koenkk/zigbee2mqtt/issues/798
                     // Sometimes the sensor publishes non-realistic vales, filter these
@@ -468,6 +470,8 @@ export const numericAttributes2Payload = async (
                 } else if (["ZNXDD01LM"].includes(model.model)) {
                     // const color_temp_min = (value & 0xffff); // 2700
                     // const color_temp_max = (value >> 16) & 0xffff; // 6500
+                } else if (["PS-S04D"].includes(model.model)) {
+                    payload.pir_detection = value === 1;
                 }
                 break;
             case "105":
@@ -638,7 +642,7 @@ export const numericAttributes2Payload = async (
                 payload.detection_interval = value;
                 break;
             case "268":
-                if (["RTCGQ13LM", "RTCGQ14LM", "RTCZCGQ11LM"].includes(model.model)) {
+                if (["RTCGQ13LM", "RTCGQ14LM", "RTCZCGQ11LM", "PS-S04D"].includes(model.model)) {
                     payload.motion_sensitivity = getFromLookup(value, {1: "low", 2: "medium", 3: "high"});
                 } else if (["JT-BZ-01AQ/A"].includes(model.model)) {
                     payload.gas_sensitivity = getFromLookup(value, {1: "15%LEL", 2: "10%LEL"});
@@ -705,7 +709,7 @@ export const numericAttributes2Payload = async (
                 }
                 break;
             case "322":
-                if (["RTCZCGQ11LM"].includes(model.model)) {
+                if (["RTCZCGQ11LM", "PS-S04D"].includes(model.model)) {
                     payload.presence = getFromLookup(value, {0: false, 1: true, 255: null});
                 }
                 break;
@@ -1185,9 +1189,10 @@ function writeTime(buffer: Buffer, offset: number, time: number, isNextDay: bool
 /**
  * Formats a number of minutes into a user-readable 24-hour time notation in the form hh:mm.
  */
-function formatTime(timeMinutes: number): string {
+function formatTime(timeMinutes: number, padHour = false): string {
     const hours = Math.floor(timeMinutes / 60);
     const minutes = timeMinutes % 60;
+    if (padHour) return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     return `${hours}:${String(minutes).padStart(2, "0")}`;
 }
 
@@ -1195,16 +1200,66 @@ function formatTime(timeMinutes: number): string {
  * Parses a 24-hour time notation string in the form hh:mm into a number of minutes.
  */
 function parseTime(timeString: string): number {
-    const parts = timeString.split(":");
+    const trimmedTimeString = timeString.trim();
+    if (!trimmedTimeString.match(/^\d{1,2}:\d{1,2}$/)) {
+        throw new Error(`Invalid time format: ${trimmedTimeString}. Expected HH:MM format (eg. "21:30")`);
+    }
+    const parts = trimmedTimeString.split(":");
 
     if (parts.length !== 2) {
-        throw new Error(`Cannot parse time string ${timeString}`);
+        throw new Error(`Cannot parse time string ${trimmedTimeString}`);
     }
 
     const hours = Number.parseInt(parts[0], 10);
     const minutes = Number.parseInt(parts[1], 10);
+    if (hours < 0 || hours > 23) {
+        throw new Error(`Invalid time format: ${trimmedTimeString}. Hours out of bounds - should be between 0 and 23.`);
+    }
+    if (minutes < 0 || minutes > 59) {
+        throw new Error(`Invalid time format: ${trimmedTimeString}. Minutes out of bounds - should be between 0 and 59.`);
+    }
 
     return hours * 60 + minutes;
+}
+
+// Time encoding & decoding (used eg in Aqara FP300) (0xMMHHmmhh)
+function encodeTimeFormat(startTime: string, endTime: string): number {
+    const start = parseTime(startTime);
+    const end = parseTime(endTime);
+    return Math.floor(start / 60) | ((start % 60) << 8) | (Math.floor(end / 60) << 16) | ((end % 60) << 24);
+}
+
+function decodeTimeFormat(value: number): {startTime: string; endTime: string} | null {
+    if (value < 0 || value > 0xffffffff) return null;
+
+    const startHour = value & 0xff;
+    const startMin = (value >>> 8) & 0xff;
+    const endHour = (value >>> 16) & 0xff;
+    const endMin = (value >>> 24) & 0xff;
+
+    if (startHour > 23 || startMin > 59 || endHour > 23 || endMin > 59) return null;
+
+    return {
+        startTime: formatTime(startHour * 60 + startMin, true),
+        endTime: formatTime(endHour * 60 + endMin, true),
+    };
+}
+
+// Encodes and decodes detection range composite value (used in FP300) from/to int
+function encodeDetectionRangeComposite(detectionRangeValue: number, rangeCount: number): {[key: string]: boolean} {
+    const composite_values: {[key: string]: boolean} = {};
+    for (let i = 0; i < rangeCount; ++i) {
+        composite_values[`detection_range_${i}`] = ((detectionRangeValue >>> i) & 1) === 1;
+    }
+    return composite_values;
+}
+
+function decodeDetectionRangeComposite(compositeValues: {[key: string]: boolean}, rangeCount: number): number {
+    let intValue = 0;
+    for (let i = 0; i < rangeCount; ++i) {
+        if (compositeValues[`detection_range_${i}`]) intValue |= 1 << i;
+    }
+    return intValue;
 }
 
 const stringifiedScheduleFragmentSeparator = "|";
@@ -1913,6 +1968,67 @@ export const lumiModernExtend = {
             reporting: false,
             ...args,
         }),
+    lumiLedDisabledNightTime: () => {
+        return {
+            isModernExtend: true,
+            exposes: [
+                e.text("schedule_start_time", ea.ALL).withDescription("LED disable schedule start time (HH:MM format)"),
+                e.text("schedule_end_time", ea.ALL).withDescription("LED disable schedule end time (HH:MM format)"),
+            ],
+            fromZigbee: [
+                {
+                    cluster: "manuSpecificLumi",
+                    type: ["attributeReport", "readResponse"],
+                    convert: (model, msg, publish, options, meta) => {
+                        if (msg.data["574"] !== undefined) {
+                            const rawValue = msg.data["574"];
+                            const decoded = decodeTimeFormat(rawValue);
+
+                            return {
+                                schedule_start_time: decoded ? decoded.startTime : "--:--",
+                                schedule_end_time: decoded ? decoded.endTime : "--:--",
+                                schedule_time_raw: rawValue,
+                            };
+                        }
+                    },
+                },
+            ],
+            toZigbee: [
+                {
+                    key: ["schedule_start_time", "schedule_end_time"],
+                    convertSet: async (entity, key, value, meta) => {
+                        assertString(value);
+
+                        // Read current and replace the attribute being edited
+                        const newData: KeyValue = {
+                            schedule_start_time: meta.state?.schedule_start_time,
+                            schedule_end_time: meta.state?.schedule_end_time,
+                            schedule_time_raw: meta.state?.schedule_time_raw,
+                        };
+                        newData[key] = value;
+
+                        const startTime: string =
+                            newData.schedule_start_time != null && typeof newData.schedule_start_time === "string"
+                                ? newData.schedule_start_time
+                                : "00:00";
+                        const endTime: string =
+                            newData.schedule_end_time != null && typeof newData.schedule_end_time === "string" ? newData.schedule_end_time : "00:00";
+
+                        // Encode and write
+                        const encodedValue = encodeTimeFormat(startTime, endTime);
+                        newData.schedule_time_raw = encodedValue;
+                        await entity.write("manuSpecificLumi", {574: {value: encodedValue, type: 0x0023}}, {manufacturerCode: manufacturerCode});
+
+                        return {state: newData};
+                    },
+                    convertGet: async (entity, key, meta) => {
+                        const endpoint = meta.device.getEndpoint(1);
+                        await endpoint.read("manuSpecificLumi", [0x023e], {manufacturerCode: manufacturerCode});
+                    },
+                },
+            ],
+        } satisfies ModernExtend;
+    },
     lumiButtonLock: (args?: Partial<modernExtend.BinaryArgs<"manuSpecificLumi">>) =>
         modernExtend.binary({
             name: "button_lock",
@@ -2270,6 +2386,178 @@ export const lumiModernExtend = {
         ];
 
         return {exposes, fromZigbee, isModernExtend: true};
+    },
+    fp300PIRDetection: () => {
+        const attribute = {ID: 0x014d, type: 0x20}; // Attribute: 333
+        return modernExtend.binary({
+            name: "pir_detection",
+            valueOn: [true, 1],
+            valueOff: [false, 0],
+            access: "STATE_GET",
+            cluster: "manuSpecificLumi",
+            attribute: attribute,
+            description:
+                "Indicates whether the PIR sensor detects motion (in mmWave + PIR mode after mmWave presence detection PIR sensors gets turned off so this attribute might change to false although the presence is detected).",
+        });
+    },
+    fp300DetectionRange: (args?: {rangeOffset: number; rangesCount: number}): ModernExtend => {
+        // biome-ignore lint/style/noParameterAssign: ignored using `--suppress`
+        args = {
+            rangeOffset: 0.25,
+            rangesCount: 24,
+            ...args,
+        };
+
+        let detectionRangeComposite = e
+            .composite("detection_range_composite", "detection_range_composite", ea.ALL)
+            .withDescription("Specifies the detection range using set of boolean settings.");
+        for (let i = 0; i < args.rangesCount; ++i) {
+            detectionRangeComposite = detectionRangeComposite.withFeature(
+                e
+                    .binary(`detection_range_${i}`, ea.SET, true, false)
+                    .withDescription(`${(i * args.rangeOffset).toFixed(2)}m - ${(i * args.rangeOffset + 1).toFixed(2)}m`),
+            );
+        }
+
+        return {
+            isModernExtend: true,
+            exposes: [
+                e
+                    .numeric("detection_range", ea.ALL)
+                    .withValueMin(0)
+                    .withValueMax((1 << 24) - 1)
+                    .withValueStep(1)
+                    .withDescription(
+                        "Specifies the range that is being detected. Requires mmWave radar mode. Press the on-device button to wake the device up and refresh its' settings.",
+                    ),
+                detectionRangeComposite,
+            ],
+            fromZigbee: [
+                {
+                    cluster: "manuSpecificLumi",
+                    type: ["attributeReport", "readResponse"],
+                    convert: (model, msg, publish, options, meta) => {
+                        if (msg.data["410"] && Buffer.isBuffer(msg.data["410"])) {
+                            const buffer = msg.data["410"];
+                            const detection_range_value = buffer.length > 0 ? buffer.readUIntLE(2, 3) : 0xffffff;
+
+                            return {
+                                detection_range_prefix: buffer.length > 0 ? buffer.readUIntLE(0, 2) : 0x0300,
+                                detection_range: detection_range_value,
+                                detection_range_composite: encodeDetectionRangeComposite(detection_range_value, args.rangesCount),
+                            };
+                        }
+                    },
+                },
+            ],
+            toZigbee: [
+                {
+                    key: ["detection_range"],
+                    convertSet: async (entity, key, value, meta) => {
+                        assertNumber(value);
+
+                        const detection_range_prefix: number =
+                            meta.state?.detection_range_prefix != null && typeof meta.state?.detection_range_prefix === "number"
+                                ? meta.state?.detection_range_prefix
+                                : 0x0300;
+
+                        const buffer = Buffer.allocUnsafe(5);
+                        buffer.writeUIntLE(detection_range_prefix, 0, 2);
+                        buffer.writeUIntLE(value, 2, 3);
+
+                        await entity.write(
+                            "manuSpecificLumi",
+                            {
+                                410: {value: buffer, type: 0x41},
+                            },
+                            {manufacturerCode: manufacturerCode},
+                        );
+                        return {
+                            state: {
+                                detection_range: value,
+                                detection_range_composite: encodeDetectionRangeComposite(value, args.rangesCount),
+                            },
+                        };
+                    },
+                    convertGet: async (entity, key, meta) => {
+                        const endpoint = meta.device.getEndpoint(1);
+                        await endpoint.read("manuSpecificLumi", [0x019a], {manufacturerCode: manufacturerCode});
+                    },
+                },
+                {
+                    key: ["detection_range_composite"],
+                    convertSet: async (entity, key, value, meta) => {
+                        assertObject(value);
+
+                        const detection_range_prefix: number =
+                            meta.state?.detection_range_prefix != null && typeof meta.state?.detection_range_prefix === "number"
+                                ? meta.state?.detection_range_prefix
+                                : 0x0300;
+                        const detection_range_value = decodeDetectionRangeComposite(value, args.rangesCount);
+
+                        const buffer = Buffer.allocUnsafe(5);
+                        buffer.writeUIntLE(detection_range_prefix, 0, 2);
+                        buffer.writeUIntLE(detection_range_value, 2, 3);
+
+                        await entity.write("manuSpecificLumi", {410: {value: buffer, type: 0x41}}, {manufacturerCode: manufacturerCode});
+                        return {
+                            state: {
+                                detection_range: detection_range_value,
+                                detection_range_composite: value,
+                            },
+                        };
+                    },
+                    convertGet: async (entity, key, meta) => {
+                        const endpoint = meta.device.getEndpoint(1);
+                        await endpoint.read("manuSpecificLumi", [0x019a], {manufacturerCode: manufacturerCode});
+                    },
+                },
+            ],
+        } satisfies ModernExtend;
+    },
+    fp300TrackDistance: () => {
+        return {
+            isModernExtend: true,
+            exposes: [
+                e.enum("track_target_distance", ea.SET, ["start_tracking_distance"]).withDescription("Initiate current target distance tracking."),
+            ],
+            toZigbee: [
+                {
+                    key: ["track_target_distance"],
+                    convertSet: async (entity, key, value, meta) => {
+                        // Uint8: 1 (0x08) attribute 0x0198 (attribute: 408)
+                        await entity.write("manuSpecificLumi", {408: {value: 1, type: 0x20}}, {manufacturerCode: manufacturerCode});
+                    },
+                },
+            ],
+        } satisfies ModernExtend;
+    },
+    fp1eAIInterference: () => {
+        const attribute = {ID: 0x015e, type: 0x20}; // Attribute: 350
+        return modernExtend.binary({
+            name: "ai_interference_source_selfidentification",
+            valueOn: ["ON", 1],
+            valueOff: ["OFF", 0],
+            cluster: "manuSpecificLumi",
+            attribute: attribute,
+            description:
+                "AI interference source self-identification switch, when enabled can identify fans, air conditioners and other interference sources",
+            access: "ALL",
+            zigbeeCommandOptions: {manufacturerCode},
+        });
+    },
+    fp1eAdaptiveSensitivity: () => {
+        const attribute = {ID: 0x015d, type: 0x20}; // Attribute: 349
+        return modernExtend.binary({
+            name: "ai_sensitivity_adaptive",
+            valueOn: ["ON", 1],
+            valueOff: ["OFF", 0],
+            cluster: "manuSpecificLumi",
+            attribute: attribute,
+            description: "Adaptive sensitivity switch function.",
+            access: "ALL",
+            zigbeeCommandOptions: {manufacturerCode},
+        });
     },
     fp1ePresence: () => {
         const attribute = {ID: 0x0142, type: 0x20};
@@ -3990,6 +4278,88 @@ export const fromZigbee = {
             return result;
         },
     } satisfies Fz.Converter<"manuSpecificLumi", undefined, ["attributeReport", "readResponse"]>,
+
+    w100_0844_req: {
+        cluster: "manuSpecificLumi",
+        type: ["attributeReport", "readResponse"],
+        convert: (model, msg, publish, options, meta) => {
+            const attr = msg.data[65522];
+            if (!attr || !Buffer.isBuffer(attr)) return;
+
+            const endsWith = Buffer.from([0x08, 0x00, 0x08, 0x44]);
+            if (attr.slice(-4).equals(endsWith)) {
+                logger.info(`Detected PMTSD request from device ${meta.device.ieeeAddr}`, NS);
+                return {action: "data_request"};
+            }
+        },
+    } satisfies Fz.Converter<"manuSpecificLumi", undefined, ["attributeReport", "readResponse"]>,
+
+    pmtsd_from_w100: {
+        cluster: "manuSpecificLumi",
+        type: ["attributeReport", "readResponse"],
+        convert: (model, msg, publish, options, meta) => {
+            const data = msg.data[65522];
+            if (!data || !Buffer.isBuffer(data)) return;
+
+            const endsWith = Buffer.from([0x08, 0x44]);
+            const idx = data.indexOf(endsWith);
+            if (idx === -1 || idx + 2 >= data.length) return;
+
+            const payloadLen = data[idx + 2];
+            const payloadStart = idx + 3;
+            const payloadEnd = payloadStart + payloadLen;
+
+            if (payloadEnd > data.length) return;
+
+            const payloadBytes = data.slice(payloadStart, payloadEnd);
+            let payloadAscii: string;
+            try {
+                payloadAscii = payloadBytes.toString("ascii");
+            } catch {
+                return;
+            }
+
+            const result: {[key: string]: string} = {};
+            const partsForCombined: string[] = [];
+            const pairs = payloadAscii.split("_");
+            pairs.forEach((p) => {
+                if (p.length >= 2) {
+                    const key = p[0];
+                    const value = p.slice(1);
+                    let newKey: string;
+                    switch (key) {
+                        case "p":
+                            newKey = "PW";
+                            break;
+                        case "m":
+                            newKey = "MW";
+                            break;
+                        case "t":
+                            newKey = "TW";
+                            break;
+                        case "s":
+                            newKey = "SW";
+                            break;
+                        case "d":
+                            newKey = "DW";
+                            break;
+                        default:
+                            newKey = `${key.toUpperCase()}W`;
+                    }
+                    result[newKey] = value;
+                    partsForCombined.push(`${newKey}${value}`);
+                }
+            });
+            const ts = Date.now();
+            const combinedString = partsForCombined.length ? `${ts}_${partsForCombined.join("_")}` : `${ts}`;
+
+            logger.info(`Decoded PMTSD: ${JSON.stringify(result)} from ${meta.device.ieeeAddr}`, NS);
+            return {
+                ...result,
+                data: combinedString,
+            };
+        },
+    } satisfies Fz.Converter<"manuSpecificLumi", undefined, ["attributeReport", "readResponse"]>,
 };
 
 export const toZigbee = {
@@ -5617,6 +5987,103 @@ export const toZigbee = {
                 return {state: statearr};
             }
             throw new Error(`Not supported: '${key}'`);
+        },
+    } satisfies Tz.Converter,
+
+    pmtsd_to_w100: {
+        key: ["PMTSD_to_W100"],
+        convertSet: async (entity, key, value, meta) => {
+            const {p, m, t, s, d} = value as {p: string; m: string; t: string; s: string; d: string};
+
+            const pmtsdStr = `P${p}_M${m}_T${t}_S${s}_D${d}`;
+            const pmtsdBytes = Array.from(pmtsdStr).map((c) => c.charCodeAt(0));
+            const pmtsdLen = pmtsdBytes.length;
+
+            const fixedHeader = [
+                0xaa,
+                0x71,
+                0x1f,
+                0x44,
+                0x00,
+                0x00,
+                0x05,
+                0x41,
+                0x1c,
+                0x00,
+                0x00,
+                0x54,
+                0xef,
+                0x44,
+                0x80,
+                0x71,
+                0x1a,
+                0x08,
+                0x00,
+                0x08,
+                0x44,
+                pmtsdLen,
+            ];
+
+            const counter = Math.floor(Math.random() * 256);
+            fixedHeader[4] = counter;
+
+            const fullPayload = [...fixedHeader, ...pmtsdBytes];
+
+            const checksum = fullPayload.reduce((sum, b) => sum + b, 0) & 0xff;
+            fullPayload[5] = checksum;
+
+            await entity.write(64704, {65522: {value: Buffer.from(fullPayload), type: 65}}, {manufacturerCode: 4447, disableDefaultResponse: true});
+
+            logger.info(`PMTSD frame sent: ${pmtsdStr} (Counter: ${counter}, Checksum: ${checksum})`, NS);
+            return {};
+        },
+    } satisfies Tz.Converter,
+
+    thermostat_mode: {
+        key: ["mode"],
+        convertSet: async (entity, key, value, meta) => {
+            const deviceMac = meta.device.ieeeAddr.replace(/^0x/, "").toLowerCase();
+            const hubMac = "54ef4480711a";
+            function cleanMac(mac: string, expectedLen: number) {
+                const cleaned = mac.replace(/[:-]/g, "");
+                if (cleaned.length !== expectedLen) {
+                    throw new Error(`MAC must be ${expectedLen} hex digits`);
+                }
+                return cleaned;
+            }
+
+            const dev = Buffer.from(cleanMac(deviceMac, 16), "hex");
+            const hub = Buffer.from(cleanMac(hubMac, 12), "hex");
+
+            let frame: Buffer;
+
+            if (value === "ON") {
+                const prefix = Buffer.concat([
+                    Buffer.from("aa713244", "hex"),
+                    Buffer.from([Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)]),
+                ]);
+                const zigbeeHeader = Buffer.from("02412f6891", "hex");
+                const messageId = Buffer.from([Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)]);
+                const control = Buffer.from([0x18]);
+                const payloadMacs = Buffer.concat([dev, Buffer.from("0000", "hex"), hub]);
+                const payloadTail = Buffer.from("08000844150a0109e7a9bae8b083e58a9f000000000001012a40", "hex");
+
+                frame = Buffer.concat([prefix, zigbeeHeader, messageId, control, payloadMacs, payloadTail]);
+            } else {
+                const prefix = Buffer.from([0xaa, 0x71, 0x1c, 0x44, 0x69, 0x1c, 0x04, 0x41, 0x19, 0x68, 0x91]);
+                const frameId = Buffer.from([Math.floor(Math.random() * 256)]);
+                const seq = Buffer.from([Math.floor(Math.random() * 256)]);
+                const control = Buffer.from([0x18]);
+
+                frame = Buffer.concat([prefix, frameId, seq, control, dev]);
+                if (frame.length < 34) {
+                    frame = Buffer.concat([frame, Buffer.alloc(34 - frame.length, 0x00)]);
+                }
+            }
+            await entity.write(64704, {65522: {value: frame, type: 0x41}}, {manufacturerCode: 4447, disableDefaultResponse: true});
+
+            logger.info(`Thermostat_Mode=${value} payload=${frame.toString("hex")}`, NS);
+            return {};
         },
     } satisfies Tz.Converter,
 };

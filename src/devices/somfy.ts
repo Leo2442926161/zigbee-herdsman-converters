@@ -94,4 +94,18 @@ export const definitions: DefinitionWithExtend[] = [
         description: "Glydea Curtain motor Zigbee module",
         extend: [m.windowCovering({controls: ["lift"]})],
     },
+    {
+        zigbeeModel: ["Tilt & Lift 25 WF Roller"],
+        model: "1245602",
+        vendor: "SOMFY",
+        description: "Tilt and lift blinds motor",
+        extend: [m.windowCovering({controls: ["lift", "tilt"]}), m.battery(), m.identify()],
+    },
+    {
+        zigbeeModel: ["1871215B"],
+        model: "1871215B",
+        vendor: "Somfy",
+        description: "Connected plug E type with power monitoring",
+        extend: [m.onOff(), m.electricityMeter()],
+    },
 ];
