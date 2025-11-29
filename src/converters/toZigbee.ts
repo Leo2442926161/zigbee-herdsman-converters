@@ -292,8 +292,21 @@ export const arm_mode: Tz.Converter = {
             panelStatus = mode !== 0 && mode !== 4 ? 0x80 : 0x00;
         }
 
+        let secondsRemain = 0;
+        let delayUntil = 0;
+        if ((mode === 4 || mode === 5) && value.delay != null) {
+            utils.assertNumber(value.delay, "delay");
+            if (!utils.isInRange(0, constants.iasMaxSecondsRemain, value.delay)) {
+                throw new Error(`Invalid delay value: ${value.delay} (expected ${0} to ${constants.iasMaxSecondsRemain})`);
+            }
+
+            secondsRemain = Math.round(value.delay);
+            delayUntil = performance.now() + value.delay * 1000;
+        }
+
         globalStore.putValue(entity, "panelStatus", panelStatus);
-        const payload = {panelstatus: panelStatus, secondsremain: 0, audiblenotif: 0, alarmstatus: 0};
+        globalStore.putValue(entity, "delayUntil", delayUntil);
+        const payload = {panelstatus: panelStatus, secondsremain: secondsRemain, audiblenotif: 0, alarmstatus: 0};
         await entity.commandResponse("ssIasAce", "panelStatusChanged", payload);
     },
 };
@@ -1291,6 +1304,14 @@ export const light_onoff_brightness: Tz.Converter = {
             // use "moveToLevel" with explicit On and Off when the state changes.
 
             if (typeof meta.state.state === "string" && meta.state.state.toLowerCase() !== targetState) {
+                if (targetState === "on") {
+                    await entity.command(
+                        "genLevelCtrl",
+                        "moveToLevel",
+                        {level: Number(brightness), transtime: transition.time},
+                        utils.getOptions(meta.mapped, entity),
+                    );
+                }
                 await on_off.convertSet(entity, "state", state, meta);
             } else {
                 await entity.command(
@@ -3350,14 +3371,27 @@ export const ptvo_switch_trigger: Tz.Converter = {
         if (key === "trigger") {
             await entity.command("genOnOff", "onWithTimedOff", {ctrlbits: 0, ontime: Math.round(value / 100), offwaittime: 0});
         } else if (key === "interval") {
-            await entity.configureReporting("genOnOff", [
-                {
-                    attribute: "onOff",
-                    minimumReportInterval: value,
-                    maximumReportInterval: value,
-                    reportableChange: 0,
-                },
-            ]);
+            const cluster = "genOnOff";
+            if (entity.supportsInputCluster(cluster) || entity.supportsOutputCluster(cluster)) {
+                await entity.configureReporting(cluster, [
+                    {
+                        attribute: "onOff",
+                        minimumReportInterval: value,
+                        maximumReportInterval: value,
+                        reportableChange: 0,
+                    },
+                ]);
+            } else if (utils.hasEndpoints(meta.device, [1])) {
+                const endpoint = meta.device.getEndpoint(1);
+                await endpoint.configureReporting("genBasic", [
+                    {
+                        attribute: "zclVersion",
+                        minimumReportInterval: value,
+                        maximumReportInterval: value,
+                        reportableChange: 0,
+                    },
+                ]);
+            }
         }
     },
 };
