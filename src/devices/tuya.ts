@@ -4237,6 +4237,7 @@ export const definitions: DefinitionWithExtend[] = [
             "_TZ3000_ug1vtuzn",
             "_TZ3000_eo3dttwe",
             "_TZ3000_jwcixnrz",
+            "_TZ3000_u2bbagu4",
         ]),
         model: "TS0215A_remote",
         vendor: "Tuya",
@@ -4991,6 +4992,7 @@ export const definitions: DefinitionWithExtend[] = [
             "_TZ3000_jsfzkftc",
             "_TZ3000_0ghwhypc",
             "_TZ3000_1adss9de",
+            "_TZ3000_x8mbwtsz",
         ]),
         model: "TS0001_power",
         description: "Switch with power monitoring",
@@ -5042,6 +5044,7 @@ export const definitions: DefinitionWithExtend[] = [
             tuya.whitelabel("Colorock", "CR-MNZ1", "1 gang switch 30A with power monitoring", ["_TZ3000_tgddllx4"]),
             tuya.whitelabel("Nous", "L6Z", "Switch with power monitoring", ["_TZ3000_qaabwu5c", "_TZ3000_1adss9de"]),
             tuya.whitelabel("Tuya", "XSH01A", "1 gang switch", ["_TZ3000_x3ewpzyr"]),
+            tuya.whitelabel("Moes", "ZM-104-M-16AM", "1 gang switch with power monitoring", ["_TZ3000_x8mbwtsz"]),
         ],
         extend: [
             tuya.modernExtend.electricityMeasurementPoll({
@@ -13958,7 +13961,7 @@ export const definitions: DefinitionWithExtend[] = [
         ],
     },
     {
-        fingerprint: tuya.fingerprint("TS0001", ["_TZ3210_dse8ogfy", "_TZ3210_j4pdtz9v", "_TZ3210_7vgttna6"]),
+        fingerprint: tuya.fingerprint("TS0001", ["_TZ3210_dse8ogfy", "_TZ3210_j4pdtz9v", "_TZ3210_7vgttna6", "_TZ3210_a04acm9s"]),
         model: "TS0001_fingerbot",
         vendor: "Tuya",
         description: "Zigbee fingerbot plus",
@@ -21525,5 +21528,63 @@ export const definitions: DefinitionWithExtend[] = [
             await reporting.bind(device.getEndpoint(2), coordinatorEndpoint, ["genOnOff"]);
         },
         exposes: [e.battery(), e.action(["on_1", "off_1", "on_2", "off_2"])],
+    },
+    {
+        fingerprint: tuya.fingerprint("ZP-301Z", ["_TZE284_d4h8j2n6"]),
+        model: "ZP-301Z",
+        vendor: "Arteco",
+        description: "PIR motion sensor light with night light function",
+        extend: [tuya.modernExtend.tuyaBase({dp: true})],
+        exposes: [
+            e.presence().withDescription("Human presence detected"),
+            e.numeric("battery_value", ea.STATE).withDescription("battery value in %").withUnit("%"),
+            e.illuminance(),
+            e
+                .numeric("brightness_value", ea.STATE_SET)
+                .withDescription("When the light brightness is activated after the lights are turned on")
+                .withUnit("%")
+                .withValueMin(5)
+                .withValueMax(100)
+                .withValueStep(1),
+            e
+                .numeric("presence_time", ea.STATE_SET)
+                .withDescription("How long to wait before turning on the lights after detecting a person and meeting the light conditions")
+                .withValueMin(0)
+                .withValueMax(60)
+                .withUnit("s")
+                .withValueStep(1),
+            e
+                .numeric("presence_delay", ea.STATE_SET)
+                .withDescription("How long after no one is detected will the lights turn off")
+                .withValueMin(5)
+                .withValueMax(120)
+                .withUnit("s")
+                .withValueStep(1),
+            e
+                .numeric("illuminance_trigger", ea.STATE_SET)
+                .withDescription("Detection is only allowed when the illuminance is less than the current value.")
+                .withValueMin(0)
+                .withValueMax(10000)
+                .withValueStep(1),
+            e
+                .numeric("detection_cycle", ea.STATE_SET)
+                .withDescription("How often is the battery level and illuminance detected")
+                .withValueMin(10)
+                .withValueMax(1200)
+                .withValueStep(5)
+                .withUnit("s"),
+        ],
+        meta: {
+            tuyaDatapoints: [
+                [1, "presence", tuya.valueConverter.trueFalse1],
+                [14, "battery_value", tuya.valueConverter.raw],
+                [20, "illuminance", tuya.valueConverter.raw],
+                [100, "brightness_value", tuya.valueConverter.raw],
+                [101, "illuminance_trigger", tuya.valueConverter.raw],
+                [102, "presence_time", tuya.valueConverter.raw],
+                [103, "presence_delay", tuya.valueConverter.raw],
+                [104, "detection_cycle", tuya.valueConverter.raw],
+            ],
+        },
     },
 ];
