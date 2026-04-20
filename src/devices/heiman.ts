@@ -98,16 +98,15 @@ interface HeimanPrivateCluster {
         cameraReady: number;
         flashLightBrightness: number;
         cameraMode: number;
-
     };
     commands: {
         cameraActiveTrigger: {
-            ID: number;
-            parameters: any[];
+            id: number;
+            parameters: [];
         };
         cameraTestTrigger: {
-            ID: number;
-            parameters: any[];
+            id: number;
+            parameters: [];
         };
     };
     commandResponses: never;
@@ -179,7 +178,6 @@ const heimanExtend = {
                 rejoinedCount: {name: "rejoinedCount", ID: 0x100a, type: Zcl.DataType.UINT8},
                 reportedPackages: {name: "reportedPackages", ID: 0x100b, type: Zcl.DataType.UINT8},
 
-
                 // wifi classes
                 wifiSsid: {name: "wifiSsid", ID: 0x2000, type: Zcl.DataType.CHAR_STR},
                 wifiPassword: {name: "wifiPassword", ID: 0x2001, type: Zcl.DataType.CHAR_STR},
@@ -191,12 +189,12 @@ const heimanExtend = {
                 serverAddressCandidae: {name: "serverAddressCandidae", ID: 0x2007, type: Zcl.DataType.CHAR_STR},
                 serverPort: {name: "serverPort", ID: 0x2008, type: Zcl.DataType.UINT8},
                 authToken: {name: "authToken", ID: 0x2009, type: Zcl.DataType.CHAR_STR},
-                zoneCaptureMode: {name: "zoneCaptureMode", ID: 0x200A, type: Zcl.DataType.UINT8},
-                sensorArmed: {name: "sensorArmed", ID: 0x200B, type: Zcl.DataType.UINT8},
-                wifiStatus: {name: "wifiStatus", ID: 0x200C, type: Zcl.DataType.UINT8},
-                wifiCandidateStatus: {name: "wifiCandidateStatus", ID: 0x200D, type: Zcl.DataType.UINT8},
-                wifiRssi: {name: "wifiRssi", ID: 0x200E, type: Zcl.DataType.INT8},
-                serverStatus: {name: "serverStatus", ID: 0x200F, type: Zcl.DataType.INT8},
+                zoneCaptureMode: {name: "zoneCaptureMode", ID: 0x200a, type: Zcl.DataType.UINT8},
+                sensorArmed: {name: "sensorArmed", ID: 0x200b, type: Zcl.DataType.UINT8},
+                wifiStatus: {name: "wifiStatus", ID: 0x200c, type: Zcl.DataType.UINT8},
+                wifiCandidateStatus: {name: "wifiCandidateStatus", ID: 0x200d, type: Zcl.DataType.UINT8},
+                wifiRssi: {name: "wifiRssi", ID: 0x200e, type: Zcl.DataType.INT8},
+                serverStatus: {name: "serverStatus", ID: 0x200f, type: Zcl.DataType.INT8},
                 serverCandidateStatus: {name: "serverCandidateStatus", ID: 0x2010, type: Zcl.DataType.INT8},
                 cameraReady: {name: "cameraReady", ID: 0x2013, type: Zcl.DataType.INT8},
                 flashLightBrightness: {name: "flashLightBrightness", ID: 0x2012, type: Zcl.DataType.INT8},
@@ -210,7 +208,7 @@ const heimanExtend = {
                 },
                 cameraTestTrigger: {
                     ID: 0x02,
-                    name: "cameraTestTrigger", 
+                    name: "cameraTestTrigger",
                     parameters: [],
                 },
             },
@@ -1011,82 +1009,92 @@ const heimanExtend = {
         };
     },
     heimanClusterSensorWifiExposure: (): ModernExtend => {
-        const clusterName = 'heimanClusterSpecial' as const;
-        
-        // Define UI elements for SSID, Password, and Server URL
+        const clusterName = "heimanClusterSpecial" as const;
+
+        const attrIds: Record<string, number> = {
+            wifiSsid: 0x0001,
+            wifiPassword: 0x0002,
+            wifiSsidCandidate: 0x0003,
+            wifiPasswordCandidate: 0x0004,
+            serverUrl: 0x0005,
+            serverUrlCandidate: 0x0006,
+        };
+
         const exposes = [
-            e.text('wifi_ssid', ea.ALL).withDescription('Current WiFi SSID'),
-            e.text('wifi_password', ea.ALL).withDescription('Current WiFi Password'),
-            e.text('wifi_ssid_candidate', ea.ALL).withDescription('Candidate WiFi SSID'),
-            e.text('wifi_password_candidate', ea.ALL).withDescription('Candidate WiFi Password'),
-            e.text('server_url', ea.ALL).withDescription('Current Server URL'),
-            e.text('server_url_candidate', ea.ALL).withDescription('Candidate Server URL'),
+            e.text("wifi_ssid", ea.ALL).withDescription("Current WiFi SSID"),
+            e.text("wifi_password", ea.ALL).withDescription("Current WiFi Password"),
+            e.text("wifi_ssid_candidate", ea.ALL).withDescription("Candidate WiFi SSID"),
+            e.text("wifi_password_candidate", ea.ALL).withDescription("Candidate WiFi Password"),
+            e.text("server_url", ea.ALL).withDescription("Current Server URL"),
+            e.text("server_url_candidate", ea.ALL).withDescription("Candidate WiFi Server URL"),
         ];
-    
-        // Converter for messages coming FROM Zigbee device
-        const fromZigbee: Fz.Converter<any, any, any>[] = [
+
+        const fromZigbee = [
             {
                 cluster: clusterName,
-                type: ['attributeReport', 'readResponse'],
-                convert: (model: any, msg: any, publish: any, options: any, meta: any) => {
-                    const result: {[key: string]: any} = {};
-                    
-                    // Map Zigbee attributes to MQTT state keys
-                    if (msg.data.wifiSsid !== undefined) result.wifi_ssid = msg.data.wifiSsid;
-                    if (msg.data.wifiPassword !== undefined) result.wifi_password = msg.data.wifiPassword;
-                    if (msg.data.wifiSsidCandidate !== undefined) result.wifi_ssid_candidate = msg.data.wifiSsidCandidate;
-                    if (msg.data.wifiPasswordCandidate !== undefined) result.wifi_password_candidate = msg.data.wifiPasswordCandidate;
-                    if (msg.data.serverUrl !== undefined) result.server_url = msg.data.serverUrl;
-                    if (msg.data.serverUrlCandidate !== undefined) result.server_url_candidate = msg.data.serverUrlCandidate;
-                    
+                type: ["attributeReport", "readResponse"],
+                convert: (model, msg, publish, options, meta) => {
+                    const result: Record<string, unknown> = {};
+                    const data = msg.data as Record<string, unknown>;
+
+                    if (data.wifiSsid !== undefined) result.wifi_ssid = data.wifiSsid;
+                    if (data.wifiPassword !== undefined) result.wifi_password = data.wifiPassword;
+                    if (data.wifiSsidCandidate !== undefined) result.wifi_ssid_candidate = data.wifiSsidCandidate;
+                    if (data.wifiPasswordCandidate !== undefined) result.wifi_password_candidate = data.wifiPasswordCandidate;
+                    if (data.serverUrl !== undefined) result.server_url = data.serverUrl;
+                    if (data.serverUrlCandidate !== undefined) result.server_url_candidate = data.serverUrlCandidate;
+
                     return result;
                 },
-            },
+            } satisfies Fz.Converter<typeof clusterName, HeimanPrivateCluster, ["attributeReport", "readResponse"]>,
         ];
-    
-        // Converter for commands sent TO Zigbee device
+
         const toZigbee: Tz.Converter[] = [
             {
-                key: [
-                    'wifi_ssid', 'wifi_password', 
-                    'wifi_ssid_candidate', 'wifi_password_candidate',
-                    'server_url', 'server_url_candidate'
-                ],
+                key: ["wifi_ssid", "wifi_password", "wifi_ssid_candidate", "wifi_password_candidate", "server_url", "server_url_candidate"],
                 convertSet: async (entity, key, value, meta) => {
-                    const valStr = value as string;
-                    const payloads: {[key: string]: {[key: string]: any}} = {
-                        wifi_ssid: {wifiSsid: valStr},
-                        wifi_password: {wifiPassword: valStr},
-                        wifi_ssid_candidate: {wifiSsidCandidate: valStr},
-                        wifi_password_candidate: {wifiPasswordCandidate: valStr},
-                        server_url: {serverUrl: valStr},
-                        server_url_candidate: {serverUrlCandidate: valStr},
+                    const attrNameMap: Record<string, string> = {
+                        wifi_ssid: "wifiSsid",
+                        wifi_password: "wifiPassword",
+                        wifi_ssid_candidate: "wifiSsidCandidate",
+                        wifi_password_candidate: "wifiPasswordCandidate",
+                        server_url: "serverUrl",
+                        server_url_candidate: "serverUrlCandidate",
                     };
-    
-                    if (payloads[key]) {
-                        await entity.write(clusterName, payloads[key], defaultResponseOptions);
+
+                    const attrName = attrNameMap[key];
+                    const attrId = attrIds[attrName];
+
+                    if (attrId !== undefined) {
+                        const payload = {
+                            [attrId]: {
+                                value: value,
+                                type: Zcl.DataType.CHAR_STR,
+                            },
+                        };
+                        await entity.write(clusterName, payload, defaultResponseOptions);
+                        // await entity.write<typeof clusterName, HeimanPrivateCluster>(clusterName, {[attrId]: value}, defaultResponseOptions);
                     }
-                    
                     return {state: {[key]: value}};
                 },
                 convertGet: async (entity, key, meta) => {
-                    const attrMap: {[key: string]: string} = {
-                        wifi_ssid: 'wifiSsid',
-                        wifi_password: 'wifiPassword',
-                        wifi_ssid_candidate: 'wifiSsidCandidate',
-                        wifi_password_candidate: 'wifiPasswordCandidate',
-                        server_url: 'serverUrl',
-                        server_url_candidate: 'serverUrlCandidate',
+                    const attrNameMap: Record<string, string> = {
+                        wifi_ssid: "wifiSsid",
+                        wifi_password: "wifiPassword",
+                        wifi_ssid_candidate: "wifiSsidCandidate",
+                        wifi_password_candidate: "wifiPasswordCandidate",
+                        server_url: "serverUrl",
+                        server_url_candidate: "serverUrlCandidate",
                     };
-    
-                    if (attrMap[key]) {
-                        // Cast as any to avoid TS2322 'string is not assignable to number'
-                        await entity.read(clusterName, [attrMap[key] as any], defaultResponseOptions);
+
+                    const attrId = attrIds[attrNameMap[key]];
+                    if (attrId !== undefined) {
+                        await entity.read(clusterName, [attrId], defaultResponseOptions);
                     }
                 },
             },
         ];
-    
+
         return {
             exposes,
             fromZigbee,
@@ -1095,23 +1103,22 @@ const heimanExtend = {
         };
     },
     heimanClusterSensorActiveTrigger: (): ModernExtend => {
-        const clusterName = 'heimanClusterSpecial' as const;
-        const manufacturerCode = 0x120B;
-    
-        const exposes = [
-            e.enum('camera_active_trigger', ea.SET, ['active'])
-                .withDescription('Trigger the camera to take a picture.'),
-        ];
-    
-        const toZigbee: Tz.Converter[] = [{
-            key: ['camera_active_trigger'],
-            convertSet: async (entity, key, value, meta) => {
-                // Command ID 0x01: CameraActiveTigger
-                await entity.command(clusterName, 0x01, {}, {manufacturerCode});
-                return {state: {[key]: value}};
+        const clusterName = "heimanClusterSpecial" as const;
+        const manufacturerCode = 0x120b;
+
+        const exposes = [e.enum("camera_active_trigger", ea.SET, ["active"]).withDescription("Trigger the camera to take a picture.")];
+
+        const toZigbee: Tz.Converter[] = [
+            {
+                key: ["camera_active_trigger"],
+                convertSet: async (entity, key, value, meta) => {
+                    // Command ID 0x01: CameraActiveTigger
+                    await entity.command(clusterName, 0x01, {}, {manufacturerCode});
+                    return {state: {[key]: value}};
+                },
             },
-        }];
-    
+        ];
+
         return {
             exposes,
             fromZigbee: [],
@@ -1120,23 +1127,22 @@ const heimanExtend = {
         };
     },
     heimanClusterSensorTestTrigger: (): ModernExtend => {
-        const clusterName = 'heimanClusterSpecial' as const;
-        const manufacturerCode = 0x120B;
-    
-        const exposes = [
-            e.enum('camera_test_trigger', ea.SET, ['test'])
-                .withDescription('Trigger camera and wifi/server connection test.'),
-        ];
-    
-        const toZigbee: Tz.Converter[] = [{
-            key: ['camera_test_trigger'],
-            convertSet: async (entity, key, value, meta) => {
-                // Command ID 0x02: CameraTestTigger
-                await entity.command(clusterName, 0x02, {}, {manufacturerCode});
-                return {state: {[key]: value}};
+        const clusterName = "heimanClusterSpecial" as const;
+        const manufacturerCode = 0x120b;
+
+        const exposes = [e.enum("camera_test_trigger", ea.SET, ["test"]).withDescription("Trigger camera and wifi/server connection test.")];
+
+        const toZigbee: Tz.Converter[] = [
+            {
+                key: ["camera_test_trigger"],
+                convertSet: async (entity, key, value, meta) => {
+                    // Command ID 0x02: CameraTestTigger
+                    await entity.command(clusterName, 0x02, {}, {manufacturerCode});
+                    return {state: {[key]: value}};
+                },
             },
-        }];
-    
+        ];
+
         return {
             exposes,
             fromZigbee: [],
@@ -1973,23 +1979,28 @@ export const definitions: DefinitionWithExtend[] = [
         vendor: "Heiman",
         description: "Smart relay module - 2 gang with neutral wire",
         exposes: [],
-        extend: [m.deviceEndpoints({endpoints: {l1: 1, l2: 2}}), m.onOff({endpointNames: ["l1", "l2"]}), m.deviceTemperature(), m.identify(), 
-        m.enumLookup({
-            name: "switch_actions",
-            endpointName: "l1",
-            lookup: {on_off: 0, off_on: 1, toggle: 2},
-            cluster: "genOnOffSwitchCfg",
-            attribute: "switchActions",
-            description: "Actions for switch 1",
-        }),
-        m.enumLookup({
-            name: "switch_actions",
-            endpointName: "l2",
-            lookup: {on_off: 0, off_on: 1, toggle: 2},
-            cluster: "genOnOffSwitchCfg",
-            attribute: "switchActions",
-            description: "Actions for switch 2",
-        }),],
+        extend: [
+            m.deviceEndpoints({endpoints: {l1: 1, l2: 2}}),
+            m.onOff({endpointNames: ["l1", "l2"]}),
+            m.deviceTemperature(),
+            m.identify(),
+            m.enumLookup({
+                name: "switch_actions",
+                endpointName: "l1",
+                lookup: {on_off: 0, off_on: 1, toggle: 2},
+                cluster: "genOnOffSwitchCfg",
+                attribute: "switchActions",
+                description: "Actions for switch 1",
+            }),
+            m.enumLookup({
+                name: "switch_actions",
+                endpointName: "l2",
+                lookup: {on_off: 0, off_on: 1, toggle: 2},
+                cluster: "genOnOffSwitchCfg",
+                attribute: "switchActions",
+                description: "Actions for switch 2",
+            }),
+        ],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint1 = device.getEndpoint(1);
             const endpoint2 = device.getEndpoint(2);
@@ -2055,116 +2066,105 @@ export const definitions: DefinitionWithExtend[] = [
         fromZigbee: [fz.ias_occupancy_alarm_1, fz.battery, fzLocal.heimanClusterSpecialfz],
         toZigbee: [],
         exposes: [],
-        extend: [m.iasZoneAlarm({zoneType: "occupancy", zoneAttributes: ["alarm_1", "tamper", "battery_low"]}), 
-                m.battery(),      
-                heimanExtend.heimanClusterSpecial(),
-                heimanExtend.heimanClusterSensorTestTrigger(),
-                heimanExtend.heimanClusterSensorActiveTrigger(),
-                heimanExtend.heimanClusterLegacyIlluminanceExtend(),
-                heimanExtend.heimanClusterSensorWifiExposure(),
-                m.numeric({
-                    name: "picture_quantity",
-                    unit: "",
-                    scale: 1,
-                    valueMin: 1,
-                    valueMax: 20,
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x2004, type: Zcl.DataType.UINT8},
-                    description: "picture quantity",
-                    access: "ALL",
-                }), 
-                m.numeric({
-                    name: "picture_quality",
-                    unit: "",
-                    scale: 1,
-                    valueMin: 0,
-                    valueMax: 100,
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x2005, type: Zcl.DataType.UINT8},
-                    description: "picture quality",
-                    access: "ALL",
-                }), 
-                m.binary({
-                    name: "sensor_armed",
-                    valueOn: ["Armed", 1],
-                    valueOff: ["Disarmed", 0],
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x200B, type: Zcl.DataType.UINT8},
-                    description: "armed",
-                    access: "ALL",
-                }),
-                m.enumLookup({
-                    name: "wifi_status",
-                    lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x200C, type: Zcl.DataType.UINT8},
-                    description: "wifi status",
-                    access: "STATE_GET",
-                }),
-                m.enumLookup({
-                    name: "wifi_candidate_status",
-                    lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x200D, type: Zcl.DataType.UINT8},
-                    description: "wifi candidate status",
-                    access: "STATE_GET",
-                }),
-                // m.enumLookup({
-                //     name: "wifi_status",
-                //     lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
-                //     cluster: "heimanClusterSpecial",
-                //     attribute: {ID: 0x200C, type: Zcl.DataType.UINT8},
-                //     description: "wifi status",
-                //     access: "STATE_GET",
-                // }),
-                m.enumLookup({
-                    name: "server_status",
-                    lookup: {unconfigurated: 0, unconnected: 1, connected: 2, api_timeout: 3},
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x200F, type: Zcl.DataType.UINT8},
-                    description: "server status",
-                    access: "STATE_GET",
-                }),
-                m.enumLookup({
-                    name: "server_candidate_status",
-                    lookup: {unconfigurated: 0, unconnected: 1, connected: 2, api_timeout: 3},
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x2010, type: Zcl.DataType.UINT8},
-                    description: "server candidate status",
-                    access: "STATE_GET",
-                }),
-                m.enumLookup({
-                    name: "camera_ready",
-                    lookup: {unavailable: 0, low_power: 1, normal: 2, advanced: 3},
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x2013, type: Zcl.DataType.UINT8},
-                    description: "wifi candidate status",
-                    access: "STATE_GET",
-                }),
-                m.numeric({
-                    name: "wifi_rssi",
-                    unit: "",
-                    scale: 1,
-                    valueMin: -127,
-                    valueMax: 127,
-                    cluster: "heimanClusterSpecial",
-                    attribute: {ID: 0x200E, type: Zcl.DataType.INT8},
-                    description: "wifi rssi",
-                    access: "ALL",
-                }), 
-            ],
-
-                // wifiSsid: {name: "wifiSsid", ID: 0x2000, type: Zcl.DataType.CHAR_STR},
-                // wifiPassword: {name: "wifiPassword", ID: 0x2001, type: Zcl.DataType.CHAR_STR},
-                // wifiSsidCandidate: {name: "wifiSsidCandidate", ID: 0x2002, type: Zcl.DataType.CHAR_STR},
-                // wifiPasswordCandidate: {name: "wifiPasswordCandidate", ID: 0x2003, type: Zcl.DataType.CHAR_STR},
-                // serverAddress: {name: "serverAddress", ID: 0x2006, type: Zcl.DataType.CHAR_STR},
-                // serverAddressCandidae: {name: "serverAddressCandidae", ID: 0x2007, type: Zcl.DataType.CHAR_STR},
-                // serverPort: {name: "serverPort", ID: 0x2008, type: Zcl.DataType.UINT8},
-                // authToken: {name: "authToken", ID: 0x2009, type: Zcl.DataType.CHAR_STR},
-                // zoneCaptureMode: {name: "zoneCaptureMode", ID: 0x200A, type: Zcl.DataType.UINT8},
-                // flashLightBrightness: {name: "flashLightBrightness", ID: 0x2012, type: Zcl.DataType.INT8},
-                // cameraMode: {name: "cameraMode", ID: 0x2014, type: Zcl.DataType.INT8},
+        extend: [
+            m.iasZoneAlarm({zoneType: "occupancy", zoneAttributes: ["alarm_1", "tamper", "battery_low"]}),
+            m.battery(),
+            heimanExtend.heimanClusterSpecial(),
+            heimanExtend.heimanClusterSensorTestTrigger(),
+            heimanExtend.heimanClusterSensorActiveTrigger(),
+            heimanExtend.heimanClusterLegacyIlluminanceExtend(),
+            heimanExtend.heimanClusterSensorWifiExposure(),
+            m.numeric({
+                name: "picture_quantity",
+                unit: "",
+                scale: 1,
+                valueMin: 1,
+                valueMax: 20,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x2004, type: Zcl.DataType.UINT8},
+                description: "picture quantity",
+                access: "ALL",
+            }),
+            m.numeric({
+                name: "picture_quality",
+                unit: "",
+                scale: 1,
+                valueMin: 0,
+                valueMax: 100,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x2005, type: Zcl.DataType.UINT8},
+                description: "picture quality",
+                access: "ALL",
+            }),
+            m.binary({
+                name: "sensor_armed",
+                valueOn: ["Armed", 1],
+                valueOff: ["Disarmed", 0],
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x200b, type: Zcl.DataType.UINT8},
+                description: "armed",
+                access: "ALL",
+            }),
+            m.enumLookup({
+                name: "wifi_status",
+                lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x200c, type: Zcl.DataType.UINT8},
+                description: "wifi status",
+                access: "STATE_GET",
+            }),
+            m.enumLookup({
+                name: "wifi_candidate_status",
+                lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x200d, type: Zcl.DataType.UINT8},
+                description: "wifi candidate status",
+                access: "STATE_GET",
+            }),
+            // m.enumLookup({
+            //     name: "wifi_status",
+            //     lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
+            //     cluster: "heimanClusterSpecial",
+            //     attribute: {ID: 0x200C, type: Zcl.DataType.UINT8},
+            //     description: "wifi status",
+            //     access: "STATE_GET",
+            // }),
+            m.enumLookup({
+                name: "server_status",
+                lookup: {unconfigurated: 0, unconnected: 1, connected: 2, api_timeout: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x200f, type: Zcl.DataType.UINT8},
+                description: "server status",
+                access: "STATE_GET",
+            }),
+            m.enumLookup({
+                name: "server_candidate_status",
+                lookup: {unconfigurated: 0, unconnected: 1, connected: 2, api_timeout: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x2010, type: Zcl.DataType.UINT8},
+                description: "server candidate status",
+                access: "STATE_GET",
+            }),
+            m.enumLookup({
+                name: "camera_ready",
+                lookup: {unavailable: 0, low_power: 1, normal: 2, advanced: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x2013, type: Zcl.DataType.UINT8},
+                description: "wifi candidate status",
+                access: "STATE_GET",
+            }),
+            m.numeric({
+                name: "wifi_rssi",
+                unit: "",
+                scale: 1,
+                valueMin: -127,
+                valueMax: 127,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x200e, type: Zcl.DataType.INT8},
+                description: "wifi rssi",
+                access: "ALL",
+            }),
+        ],
     },
     {
         fingerprint: [{modelID: "DoorBell-EM", manufacturerName: "HEIMAN"}],
