@@ -2121,14 +2121,6 @@ export const definitions: DefinitionWithExtend[] = [
                 description: "wifi candidate status",
                 access: "STATE_GET",
             }),
-            // m.enumLookup({
-            //     name: "wifi_status",
-            //     lookup: {unconfigurated: 0, unconnected: 1, connected: 2, connection_timeout: 3},
-            //     cluster: "heimanClusterSpecial",
-            //     attribute: {ID: 0x200C, type: Zcl.DataType.UINT8},
-            //     description: "wifi status",
-            //     access: "STATE_GET",
-            // }),
             m.enumLookup({
                 name: "server_status",
                 lookup: {unconfigurated: 0, unconnected: 1, connected: 2, api_timeout: 3},
