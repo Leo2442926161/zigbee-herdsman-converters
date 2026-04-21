@@ -1185,7 +1185,6 @@ const fzLocal = {
                 3: "connection_timeout",
             };
 
-            console.log(data);
             if (data.smokeConcentrationLevel !== undefined) {
                 const raw = Number.parseFloat(data.smokeConcentrationLevel as string) / 100;
                 // Check if valid, then force exactly 2 decimal places as a STRING
@@ -2063,7 +2062,7 @@ export const definitions: DefinitionWithExtend[] = [
         model: "HS9MS-E",
         vendor: "Heiman",
         description: "Smart motion sensor",
-        fromZigbee: [fz.ias_occupancy_alarm_1, fz.battery, fzLocal.heimanClusterSpecialfz],
+        fromZigbee: [fzLocal.heimanClusterSpecialfz],
         toZigbee: [],
         exposes: [],
         extend: [
@@ -2617,11 +2616,76 @@ export const definitions: DefinitionWithExtend[] = [
         ota: true,
     },
     {
+        zigbeeModel: ["Smokesensor-EF2-3.0"],
+        model: "HS1SA-E Lover",
+        vendor: "Heiman",
+        description: "Smoke detector",
+        fromZigbee: [fzLocal.heimanClusterSpecialfz],
+        toZigbee: [tz.warning],
+        configure: async (device, coordinatorEndpoint) => {
+            const endpoint = device.getEndpoint(1);
+            await reporting.bind(endpoint, coordinatorEndpoint, ["genPowerCfg", 0xfc90]);
+            await reporting.batteryPercentageRemaining(endpoint);
+            await endpoint.read("ssIasZone", ["zoneStatus", "zoneState", "iasCieAddr", "zoneId"]);
+            await endpoint.read("heimanClusterSpecial", [0x0002, 0x008, 0x009, 0x0019, 0x001a, 0x001b], {
+                manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
+            });
+        },
+        exposes: [],
+        extend: [
+            m.battery(),
+            m.identify(),
+            m.iasZoneAlarm({zoneType: "smoke", zoneAttributes: ["alarm_1", "battery_low", "test", "trouble"]}),
+            heimanExtend.heimanClusterSpecial(),
+            heimanExtend.iasZoneInitiateTestMode(),
+            heimanExtend.iasWarningDeviceMute(),
+            m.enumLookup({
+                name: "siren_for_automation_only",
+                lookup: {stop: 0, smoke_siren: 1},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x0012, type: Zcl.DataType.ENUM8},
+                description: "siren effect",
+                access: "ALL",
+            }),
+            m.numeric({
+                name: "reported_packages",
+                unit: "",
+                valueMin: 0,
+                valueMax: 60000,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x001b, type: Zcl.DataType.UINT16},
+                description: "for diagnostic purpose, how many zigbee packages has the reported in a day.",
+                access: "STATE_GET",
+            }),
+            m.numeric({
+                name: "rejoin_count",
+                unit: "",
+                valueMin: 0,
+                valueMax: 60000,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x001a, type: Zcl.DataType.UINT16},
+                description: "for diagnostic purpose, how many times has the product rejoined to zigbee network.",
+                access: "STATE_GET",
+            }),
+            m.numeric({
+                name: "reboot_count",
+                unit: "",
+                valueMin: 0,
+                valueMax: 60000,
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x0019, type: Zcl.DataType.UINT16},
+                description: "for diagnostic purpose, how many times has the product rebooted.",
+                access: "STATE_GET",
+            }),
+        ],
+        ota: true,
+    },
+    {
         zigbeeModel: ["HM-636THV-AC-M"],
         model: "HM-636THV-AC-M",
         vendor: "Heiman",
         description: "Smoke detector",
-        fromZigbee: [fz.ias_smoke_alarm_1, fz.battery, fzLocal.heimanClusterSpecialfz],
+        fromZigbee: [fzLocal.heimanClusterSpecialfz],
         toZigbee: [tz.warning],
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(1);
