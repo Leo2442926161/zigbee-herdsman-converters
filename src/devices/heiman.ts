@@ -1012,12 +1012,12 @@ const heimanExtend = {
         const clusterName = "heimanClusterSpecial" as const;
 
         const attrIds: Record<string, number> = {
-            wifiSsid: 0x0001,
-            wifiPassword: 0x0002,
-            wifiSsidCandidate: 0x0003,
-            wifiPasswordCandidate: 0x0004,
-            serverUrl: 0x0005,
-            serverUrlCandidate: 0x0006,
+            wifiSsid: 0x2000,
+            wifiPassword: 0x2001,
+            wifiSsidCandidate: 0x2002,
+            wifiPasswordCandidate: 0x2003,
+            serverUrl: 0x2006,
+            serverUrlCandidate: 0x2007,
         };
 
         const exposes = [
