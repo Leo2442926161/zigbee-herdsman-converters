@@ -1193,6 +1193,12 @@ const fzLocal = {
                 2: "connected",
                 3: "connection_timeout",
             };
+            const interconnectionStatusLookup: Record<number, string> = {
+                0: "inactive",
+                1: "smoke_active",
+                2: "co_active",
+                3: "heat_active",
+            };
 
             if (data.smokeConcentrationLevel !== undefined) {
                 const raw = Number.parseFloat(data.smokeConcentrationLevel as string) / 100;
@@ -1207,6 +1213,9 @@ const fzLocal = {
             }
             if (data.smokeConcentationUnit !== undefined) {
                 result.smoke_unit = data.smokeConcentationUnit ? "%ft OBS" : "dB/m";
+            }
+            if (data.interconnectable !== undefined) {
+                result.interconnectable = interconnectionStatusLookup[data.interconnectable as number];
             }
             if (data.serverStatus !== undefined) {
                 result.server_status = serverStatusLookup[data.serverStatus as number];
@@ -2555,7 +2564,6 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
             m.numeric({
                 name: "smoke_level",
                 unit: "",
@@ -2581,6 +2589,14 @@ export const definitions: DefinitionWithExtend[] = [
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x0017, type: Zcl.DataType.ENUM8},
                 description: "it indicates that how serious the smoke chamber get contaminated.",
+                access: "STATE_GET",
+            }),
+            m.enumLookup({
+                name: "interconnectable",
+                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
+                description: "used for interconnection automation.",
                 access: "STATE_GET",
             }),
             m.enumLookup({
@@ -2652,8 +2668,14 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
-
+            m.enumLookup({
+                name: "interconnectable",
+                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
+                description: "used for interconnection automation.",
+                access: "STATE_GET",
+            }),
             m.enumLookup({
                 name: "siren_for_automation_only",
                 lookup: {stop: 0, smoke_siren: 1, co_siren: 2},
@@ -2723,8 +2745,6 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
-
             m.enumLookup({
                 name: "siren_for_automation_only",
                 lookup: {stop: 0, smoke_siren: 1, co_siren: 2},
@@ -2732,6 +2752,14 @@ export const definitions: DefinitionWithExtend[] = [
                 attribute: {ID: 0x0012, type: Zcl.DataType.ENUM8},
                 description: "siren effect",
                 access: "ALL",
+            }),
+            m.enumLookup({
+                name: "interconnectable",
+                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
+                description: "used for interconnection automation.",
+                access: "STATE_GET",
             }),
             m.numeric({
                 name: "reported_packages",
@@ -2860,7 +2888,7 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
+            // heimanExtend.heimanClusterSensorInterconnectable(),
             m.numeric({
                 name: "smoke_level",
                 unit: "",
@@ -2886,6 +2914,14 @@ export const definitions: DefinitionWithExtend[] = [
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x0017, type: Zcl.DataType.ENUM8},
                 description: "it indicates that how serious the smoke chamber get contaminated.",
+                access: "STATE_GET",
+            }),
+            m.enumLookup({
+                name: "interconnectable",
+                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
+                cluster: "heimanClusterSpecial",
+                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
+                description: "used for interconnection automation.",
                 access: "STATE_GET",
             }),
             m.enumLookup({
