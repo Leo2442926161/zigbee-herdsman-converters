@@ -807,13 +807,6 @@ const heimanExtend = {
             e.binary("interconnectable", ea.STATE_GET, true, false).withDescription("used for interconnection automation."),
         );
 
-        const interconnectionStatusLookup: Record<number, string> = {
-            0: "inactive",
-            1: "smoke_active",
-            2: "co_active",
-            3: "heat_active",
-        };
-
         const fromZigbee = [
             {
                 cluster: clusterName,
@@ -823,7 +816,7 @@ const heimanExtend = {
                         return;
                     }
 
-                    const state = interconnectionStatusLookup[msg.data.interconnectable as number];
+                    const state = !!msg.data.interconnectable;
                     return {interconnectable: state};
                 },
             } satisfies Fz.Converter<typeof clusterName, HeimanPrivateCluster, ["attributeReport", "readResponse"]>,
@@ -1216,7 +1209,7 @@ const fzLocal = {
                 result.smoke_unit = data.smokeConcentationUnit ? "%ft OBS" : "dB/m";
             }
             if (data.interconnectable !== undefined) {
-                result.interconnectable = interconnectionStatusLookup[data.interconnectable as number];
+                result.link_available = interconnectionStatusLookup[data.interconnectable as number];
             }
             if (data.serverStatus !== undefined) {
                 result.server_status = serverStatusLookup[data.serverStatus as number];
@@ -2565,6 +2558,7 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
+            heimanExtend.heimanClusterSensorInterconnectable(),
             m.numeric({
                 name: "smoke_level",
                 unit: "",
@@ -2593,7 +2587,7 @@ export const definitions: DefinitionWithExtend[] = [
                 access: "STATE_GET",
             }),
             m.enumLookup({
-                name: "interconnectable",
+                name: "link_available",
                 lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
@@ -2669,8 +2663,9 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
+            heimanExtend.heimanClusterSensorInterconnectable(),
             m.enumLookup({
-                name: "interconnectable",
+                name: "link_available",
                 lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
@@ -2746,6 +2741,7 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
+            heimanExtend.heimanClusterSensorInterconnectable(),
             m.enumLookup({
                 name: "siren_for_automation_only",
                 lookup: {stop: 0, smoke_siren: 1, co_siren: 2},
@@ -2755,7 +2751,7 @@ export const definitions: DefinitionWithExtend[] = [
                 access: "ALL",
             }),
             m.enumLookup({
-                name: "interconnectable",
+                name: "link_available",
                 lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
@@ -2889,7 +2885,7 @@ export const definitions: DefinitionWithExtend[] = [
             heimanExtend.iasZoneInitiateTestMode(),
             heimanExtend.heimanClusterSensorMutable(),
             heimanExtend.heimanClusterIndicatorLight(),
-            // heimanExtend.heimanClusterSensorInterconnectable(),
+            heimanExtend.heimanClusterSensorInterconnectable(),
             m.numeric({
                 name: "smoke_level",
                 unit: "",
@@ -2918,7 +2914,7 @@ export const definitions: DefinitionWithExtend[] = [
                 access: "STATE_GET",
             }),
             m.enumLookup({
-                name: "interconnectable",
+                name: "link_available",
                 lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
                 cluster: "heimanClusterSpecial",
                 attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
