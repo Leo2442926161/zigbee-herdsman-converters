@@ -2719,8 +2719,8 @@ export const definitions: DefinitionWithExtend[] = [
         ota: true,
     },
     {
-        zigbeeModel: ["HS1CA-E PLUS"],
-        model: "HS1CA-E PLUS",
+        zigbeeModel: ["HS1CA-E-PLUS"],
+        model: "HS1CA-E Plus",
         vendor: "Heiman",
         description: "Co detector",
         fromZigbee: [fzLocal.heimanClusterSpecialfz],
