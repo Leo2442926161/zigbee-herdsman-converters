@@ -2548,9 +2548,13 @@ export const definitions: DefinitionWithExtend[] = [
             await reporting.bind(endpoint, coordinatorEndpoint, ["genPowerCfg", 0xfc90]);
             await reporting.batteryPercentageRemaining(endpoint);
             await endpoint.read("ssIasZone", ["zoneStatus", "zoneState", "iasCieAddr", "zoneId"]);
-            await endpoint.read("heimanClusterSpecial", [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x100d], {
-                manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
-            });
+            await endpoint.read(
+                "heimanClusterSpecial",
+                [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x100d],
+                {
+                    manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
+                },
+            );
         },
         exposes: [],
         extend: [
@@ -2617,162 +2621,6 @@ export const definitions: DefinitionWithExtend[] = [
                 attribute: {ID: 0x100d, type: Zcl.DataType.INT16},
                 description: "used for temperature offset, unit: 0.01℃",
                 access: "ALL",
-            }),
-            m.numeric({
-                name: "reported_packages",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x001b, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many zigbee packages has the reported in a day.",
-                access: "STATE_GET",
-            }),
-            m.numeric({
-                name: "rejoin_count",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x001a, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many times has the product rejoined to zigbee network.",
-                access: "STATE_GET",
-            }),
-            m.numeric({
-                name: "reboot_count",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x0019, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many times has the product rebooted.",
-                access: "STATE_GET",
-            }),
-        ],
-        ota: true,
-    },
-    {
-        zigbeeModel: ["HM-722ESY-E-PLUS"],
-        model: "HM-722ESY-E Plus",
-        vendor: "Heiman",
-        description: "Co detector",
-        fromZigbee: [fzLocal.heimanClusterSpecialfz],
-        toZigbee: [tz.warning],
-        configure: async (device, coordinatorEndpoint) => {
-            const endpoint = device.getEndpoint(1);
-            await reporting.bind(endpoint, coordinatorEndpoint, ["genPowerCfg", 0xfc90]);
-            await reporting.batteryPercentageRemaining(endpoint);
-            await endpoint.read("ssIasZone", ["zoneStatus", "zoneState", "iasCieAddr", "zoneId"]);
-            await endpoint.read("heimanClusterSpecial", [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b], {
-                manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
-            });
-        },
-        exposes: [e.co()],
-        extend: [
-            m.battery(),
-            m.identify(),
-            m.temperature(),
-            m.iasZoneAlarm({zoneType: "carbon_monoxide", zoneAttributes: ["alarm_1", "battery_low", "test"]}),
-            heimanExtend.heimanClusterSpecial(),
-            heimanExtend.heimanClusterSensorFaultState(),
-            heimanExtend.heimanClusterDeviceMuteState(),
-            heimanExtend.iasZoneInitiateTestMode(),
-            heimanExtend.heimanClusterSensorMutable(),
-            heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
-            m.enumLookup({
-                name: "link_available",
-                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
-                description: "used for interconnection automation.",
-                access: "STATE_GET",
-            }),
-            m.enumLookup({
-                name: "siren_for_automation_only",
-                lookup: {stop: 0, smoke_siren: 1, co_siren: 2},
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x0012, type: Zcl.DataType.ENUM8},
-                description: "siren effect",
-                access: "ALL",
-            }),
-            m.numeric({
-                name: "reported_packages",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x001b, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many zigbee packages has the reported in a day.",
-                access: "STATE_GET",
-            }),
-            m.numeric({
-                name: "rejoin_count",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x001a, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many times has the product rejoined to zigbee network.",
-                access: "STATE_GET",
-            }),
-            m.numeric({
-                name: "reboot_count",
-                unit: "",
-                valueMin: 0,
-                valueMax: 60000,
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x0019, type: Zcl.DataType.UINT16},
-                description: "for diagnostic purpose, how many times has the product rebooted.",
-                access: "STATE_GET",
-            }),
-        ],
-        ota: true,
-    },
-    {
-        zigbeeModel: ["HS1CA-E-PLUS"],
-        model: "HS1CA-E Plus",
-        vendor: "Heiman",
-        description: "Co detector",
-        fromZigbee: [fzLocal.heimanClusterSpecialfz],
-        toZigbee: [tz.warning],
-        configure: async (device, coordinatorEndpoint) => {
-            const endpoint = device.getEndpoint(1);
-            await reporting.bind(endpoint, coordinatorEndpoint, ["genPowerCfg", 0xfc90]);
-            await reporting.batteryPercentageRemaining(endpoint);
-            await endpoint.read("ssIasZone", ["zoneStatus", "zoneState", "iasCieAddr", "zoneId"]);
-            await endpoint.read("heimanClusterSpecial", [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b], {
-                manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
-            });
-        },
-        exposes: [e.co()],
-        extend: [
-            m.battery(),
-            m.identify(),
-            m.temperature(),
-            m.iasZoneAlarm({zoneType: "carbon_monoxide", zoneAttributes: ["alarm_1", "battery_low", "test"]}),
-            heimanExtend.heimanClusterSpecial(),
-            heimanExtend.heimanClusterSensorFaultState(),
-            heimanExtend.heimanClusterDeviceMuteState(),
-            heimanExtend.iasZoneInitiateTestMode(),
-            heimanExtend.heimanClusterSensorMutable(),
-            heimanExtend.heimanClusterIndicatorLight(),
-            heimanExtend.heimanClusterSensorInterconnectable(),
-            m.enumLookup({
-                name: "siren_for_automation_only",
-                lookup: {stop: 0, smoke_siren: 1, co_siren: 2},
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x0012, type: Zcl.DataType.ENUM8},
-                description: "siren effect",
-                access: "ALL",
-            }),
-            m.enumLookup({
-                name: "link_available",
-                lookup: {inactive: 0, smoke_active: 1, co_active: 2, heat_active: 3},
-                cluster: "heimanClusterSpecial",
-                attribute: {ID: 0x1007, type: Zcl.DataType.UINT8},
-                description: "used for interconnection automation.",
-                access: "STATE_GET",
             }),
             m.numeric({
                 name: "reported_packages",
@@ -3040,9 +2888,13 @@ export const definitions: DefinitionWithExtend[] = [
             await reporting.bind(endpoint, coordinatorEndpoint, ["genPowerCfg", 0xfc90]);
             await reporting.batteryPercentageRemaining(endpoint);
             await endpoint.read("ssIasZone", ["zoneStatus", "zoneState", "iasCieAddr", "zoneId"]);
-            await endpoint.read("heimanClusterSpecial", [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x100d], {
-                manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
-            });
+            await endpoint.read(
+                "heimanClusterSpecial",
+                [0x0002, 0x008, 0x009, 0x1004, 0x1007, 0x0016, 0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x100d],
+                {
+                    manufacturerCode: Zcl.ManufacturerCode.HEIMAN_TECHNOLOGY_CO_LTD,
+                },
+            );
         },
         exposes: [e.co()],
         extend: [
